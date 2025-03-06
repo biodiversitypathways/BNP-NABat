@@ -1,0 +1,166 @@
+---
+title: "North American Bat Monitoring Program in Banff National Park"
+format:
+  html:
+    grid:
+      margin-width: 300px
+title-block-banner: "#1d4566"
+title-block-banner-color: "#F4F4F5"
+subtitle: "Manual Verification Data Summary" 
+navbar: right
+theme: cosmo
+date: last-modified
+author: 
+  - name: "Camila Hurtado"
+    affiliation: "Biodiversity Pathways Ltd."
+editor: visual
+bibliography: NABat-NNWHub-references.bib
+nocite: '@*'
+toc: true
+toc-depth: 3
+toc-expand: true
+toc-location: left
+css: styles.css
+github: https://github.com/biodiversitypathways/BNP-NABat
+---
+
+```{r}
+#| label: Load packages and data
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| 
+library(tidyr)
+library(dplyr)
+library(lubridate)
+
+data <- read.csv("Data/id.csv")
+data$Site <- gsub("\\_.*","",data$IN.FILE)
+data$DATE <- as.Date(data$DATE)
+
+#get a list of all the sites and transects that were carried out
+# Create the new dataframe with site names and date ranges
+site_dates <- data %>%
+  # Filter out any "mobile" sites if needed (as per your previous request)
+  subset(Site != "BANFF-MOBILE") %>%
+  # Group by site
+  group_by(Site) %>%
+  # Calculate earliest and latest dates for each site
+  summarize(
+    earliest_date = min(DATE, na.rm = TRUE),
+    latest_date = max(DATE, na.rm = TRUE),
+    total_days = as.integer(latest_date - earliest_date) + 1,
+  ) %>%
+  # Sort by site name
+  arrange(Site)
+
+transect_dates <- data %>%
+  # Filter out any "mobile" sites if needed (as per your previous request)
+  subset(Site == "BANFF-MOBILE") %>%
+  # Group by site
+  group_by(Site) %>%
+  # Calculate earliest and latest dates for each site
+  summarize(
+    earliest_date = min(DATE, na.rm = TRUE),
+    latest_date = max(DATE, na.rm = TRUE),
+    total_days = as.integer(latest_date - earliest_date) + 1,
+  ) %>%
+  # Sort by site name
+  arrange(Site)
+```
+
+```{r}
+#| label: Get a list of all unique manual IDs and count
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| 
+library(tidyr)
+library(dplyr)
+library(stringr)
+# Extract and find unique values in MANUAL.ID
+unique_bat_ids <- data %>%
+  # Filter out NA or empty values
+  filter(!is.na(MANUAL.ID) & MANUAL.ID != "NA" & MANUAL.ID != "") %>%
+  # Get just the MANUAL.ID column
+  select(MANUAL.ID) %>%
+  # Split each entry by comma
+  mutate(MANUAL.ID = str_split(MANUAL.ID, ",")) %>%
+  # Convert the list column to rows
+  unnest(MANUAL.ID) %>%
+  # Trim whitespace
+  mutate(MANUAL.ID = str_trim(MANUAL.ID)) %>%
+  # Get unique values
+  distinct() %>%
+  # Sort alphabetically
+  arrange(MANUAL.ID)
+
+
+# If you want just a simple character vector
+unique_bat_id_vector <- unique_bat_ids$MANUAL.ID
+
+# Count occurrences of each ID
+bat_id_counts <- data %>%
+  subset(!is.na(MANUAL.ID) & MANUAL.ID != "NA" & MANUAL.ID != "") %>%
+  # Create a temporary column with comma-separated values split into rows
+  mutate(split_id = str_split(MANUAL.ID, ",")) %>%
+  unnest(split_id) %>%
+  mutate(split_id = str_trim(split_id)) %>%
+  # Count occurrences of each ID
+  count(split_id, name = "occurrences") %>%
+  arrange(desc(occurrences))
+
+
+```
+
+# Executive Summary
+
+Banff National Park conducts annual acoustic monitoring of bats as part of the North American Bat Monitoring Program (NABat). In 2024, the monitoring consisted of 3 stationary acoustic deployments operating between June 26 and July 9, and 2 mobile transects conducted on July 1 and 2. These data were submitted SENSR for processing and manual vetting. The monitoring focused on seven bat species known to inhabit the region: Big Brown Bats (*Eptesicus fuscus*), Eastern Red Bats (*Lasiurus borealis*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Bats (*Myotis lucifugus*), Long-legged Myotis (*Myotis volans*) and Long-eared Myotis (*Myotis evotis*).
+
+In total stationary detectors operated for a total of 42 recorder nights, collecting 14075 bat recordings. Of these, \### were manually reviewed and vetted. Mobile transect surveys collected 192 bat recordings which were all manually vetted. The species most identified was Little Brown Bats (# of recordings manual verified), folowed by \_\_\_\_ (## of recordings identified).
+
+Key recommendations include modifying the mobile transect route to prevent it from curving into itself, which compromises abundance measurements, and adjusting the Golf Course deployment to be 5-10m away from open water and clutter to prevent multiple bats in a single recording.
+
+# Land Acknowledgement
+
+Biodiversity Pathways respectfully acknowledges that this work takes place on the territories of Treaties 6, 7, 8, and the Métis homeland, traditional and ancestral lands of First Nations and Métis Peoples, whose histories, languages, and cultures are directly linked to the biodiversity that we monitor.
+
+We acknowledge the traditional teachings of the lands that we work on, and that reciprocal, meaningful, and respectful relationships with Indigenous peoples make our work possible. We are deeply grateful for their stewardship of these lands, and we are committed to supporting Indigenous-led monitoring programs, while learning Indigenous ways of knowing, being, and doing.
+
+# Introduction
+
+## Overview of NABat and the NNW Bat Hub
+
+North American Bat Monitoring Program (NABat) is a large-scale coordinated effort to monitor bat species across North America using standardized protocols and a unified sample design [@loeb2015Plan]. NABat was established to address the gaps in knowledge and lack of long term studies of bat species across Mexico, USA and Canada. The program is administered by the US Geological Survey (USGS), coordinated by the Canadian Wildlife Health Cooperative (CWHC) in Canada, and implemented by the North by Northwest Bat (NNW) Hub in British Columbia, Alberta and S.E Alaska.
+
+NNW Bat Hub was established in 2024 with collaboration from Government of Alberta, Government of Alaska and Government of British Columbia. The hub was formed by combining the previous Alberta Hub and the BC and southeast Alaska (BC-SE_AK) Hub. The implementation of the program within Alberta is lead by Biodiversity Pathways with key support from Parks Canada, government staff, other wildlife biologists, Indigenous Nations, community members and naturalists across the province.
+
+## 2024 NABat Monitoring in Banff National Park
+
+In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_days` `` mobile transects were made in Banff National Park (Figure 1) . The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to SENSR for processing and manual vetting to determine species presence or absence at the sites.
+
+![Figure 1: NABat Survey efforts by Banff National Park in 2024](Figures/2024Sites.jpg){width="2500"}
+
+# Methods
+
+Full-spectrum recordings were from the sampling periods were collected and processed using two automatic classifiers: Kaleidoscope's Bats of North America 5.4.0 classifier and Sonobat 3.0's Northwestern British Columbia classifier. Based on documented species ranges and prior detection data [@olsonBat], manual identification efforts focused on seven species: Big Brown Bats (*Eptesicus fuscus*), Eastern Red Bats (*Lasiurus borealis*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Bats (*Myotis lucifugus*), Long-legged Myotis (*Myotis volans*) and Long-eared Myotis (*Myotis evotis*).
+
+The analysis workflow followed processing standards established by the North American Bat Monitoring Program (NABat) [@reichert2018Guide]. Only recordings assigned a species classification by either Kaleidoscope or Sonobat were selected for manual verification. For stationary acoustic monitoring, recordings were manually vetted until at least one recording per species per site per night was confidently identified. For mobile transects, all recordings with automated species classifications were manually vetted. Species identifications were validated against reference call parameters described by @slough2022New, @solick2022Bat, and @szewczak2018Acoustic, adhering to NABat manual vetting standards [@reichert2018Guide].
+
+# Results
+
+The stationary detectors ran for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these `` `r length(data$Site[(data$Site != "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` `` were classified as noise files, with no distinguishable bat present. Of the remaining files a total of `` `r length(data$MANUAL.ID[data$MANUAL.ID !=""])` `` were reviewed and manually vetted. Of the remaining files the species and groups identified from the manual verification were `` `r unique_bat_id_vector` `` (Table 1). Explain what each of the categories means.
+
+For driving transects a total of `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files were collected, of which `` `r length(data$Site[(data$Site == "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` `` were noise files.
+
+Insert table with summary of results
+
+# Recommendations
+
+Consider changing the route so that it does not curve into itself. The purpose of abundance measures is sort of defeated when this happens.
+
+Golf course deploy a little a way (5-10m) from the open water and clutter to prevent having multiple bats in a single recording. Upper hotsprings and fenlands deployments look good.
