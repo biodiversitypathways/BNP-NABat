@@ -163,4 +163,4 @@ Insert table with summary of results
 
 Consider changing the route so that it does not curve into itself. The purpose of abundance measures is sort of defeated when this happens.
 
-Golf course deploy a little a way (5-10m) from the open water and clutter to prevent having multiple bats in a single recording. Upper hotsprings and fenlands deployments look good.
+Golf course deploy a little a way (5-10m) from the open water and clutter to prevent having multiple bats in a single recording. Upper hotsprings and fenlands deployments look good. Microphone is close to the detector which creates an echo. Consider getting an extension cable to reduce this
