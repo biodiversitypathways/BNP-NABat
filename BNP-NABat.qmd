@@ -36,7 +36,7 @@ library(tidyr)
 library(dplyr)
 library(lubridate)
 
-data <- read.csv("Data/id.csv")
+data <- read.csv("Data/BNP_full.csv")
 data$Site <- gsub("\\_.*","",data$IN.FILE)
 data$DATE <- as.Date(data$DATE)
 
