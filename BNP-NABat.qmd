@@ -35,11 +35,24 @@ github: https://github.com/biodiversitypathways/BNP-NABat
 library(tidyr)
 library(dplyr)
 library(lubridate)
+library(stringr)
+library(kableExtra)
+library(tidyverse)
 
 data <- read.csv("Data/BNP_full.csv")
 data$Site <- gsub("\\_.*","",data$IN.FILE)
 data$DATE <- as.Date(data$DATE)
 
+```
+
+```{r}
+#| label: Get list of sites, transects, unique IDs
+#| include: false
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| 
 #get a list of all the sites and transects that were carried out
 # Create the new dataframe with site names and date ranges
 site_dates <- data %>%
@@ -63,25 +76,13 @@ transect_dates <- data %>%
   group_by(Site) %>%
   # Calculate earliest and latest dates for each site
   summarize(
-    earliest_date = min(DATE, na.rm = TRUE),
-    latest_date = max(DATE, na.rm = TRUE),
-    total_days = as.integer(latest_date - earliest_date) + 1,
+    earliest_date = min(DATE, na.rm = TRUE)-1,
+    latest_date = max(DATE, na.rm = TRUE)-1,
+    total_transects = as.integer(latest_date - earliest_date) + 1,
   ) %>%
   # Sort by site name
   arrange(Site)
-```
 
-```{r}
-#| label: Get a list of all unique manual IDs and count
-#| include: false
-#| echo: false
-#| eval: true
-#| warning: false
-#| message: false
-#| 
-library(tidyr)
-library(dplyr)
-library(stringr)
 # Extract and find unique values in MANUAL.ID
 unique_bat_ids <- data %>%
   # Filter out NA or empty values
@@ -99,6 +100,8 @@ unique_bat_ids <- data %>%
   # Sort alphabetically
   arrange(MANUAL.ID)
 
+#Add definitions for each manual ID
+unique_bat_ids$Definition <- c("Various species of Myotis that have a characteristic frequency in the range of 35-40kHz.", "Calls that have diagnostic features identifying it as Eptesicus fuscus", "Calls that could be attributed to either Eptesicus fuscus or Lasyonicteris noctivagans", "Various species with pulses having a characteristic frequency higher than ~35kHz", "Calls that have diagnostic features identifying it as Lasiurus borealis","Calls that could be attributed to either Lasiurus borealis or Myotis lucifugus","Calls that have diagnostic features identifying it as Lasiurus cinereus", "Calls that have diagnostic features identifying it as Lasyonicteris noctivagans", "Various species with pulses having a characteristic frequency lower than ~30kHz","Calls that have diagnostic features identifying it as Myotis evotis", "Calls that have diagnostic features identifying it as Myotis lucifugus","Calls that could be attributed to either Myotis lucifugus or Myotis septentrionalis", "Calls that could be attributed to either Myotis lucifugus or Myotis volans", "Various species of Myotis with no clear characteristic frequency","Calls that have diagnostic features identifying it as Myotis septentrionalis","Calls that have diagnostic features identifying it as Myotis volans","Bat calls but no grouping category applies", "No bat recorded")
 
 # If you want just a simple character vector
 unique_bat_id_vector <- unique_bat_ids$MANUAL.ID
@@ -114,16 +117,108 @@ bat_id_counts <- data %>%
   count(split_id, name = "occurrences") %>%
   arrange(desc(occurrences))
 
+```
+
+```{r}
+#| label: summary-table-results
+#| include: false
+#| echo: false
+#| warning: false
+#| message: false
+
+result <- data %>% filter(!is.na(MANUAL.ID) & MANUAL.ID != "")
+# Split the MANUAL.ID column and create a long format dataframe
+result <- result %>%
+  mutate(MANUAL.ID = strsplit(as.character(MANUAL.ID), ",")) %>%
+  unnest(MANUAL.ID) %>%
+  # Trim whitespace from IDs
+  mutate(MANUAL.ID = trimws(MANUAL.ID))
+  
+# Check if we have the unique_bat_ids
+# If not, we can create it from the data
+if (!exists("unique_bat_ids")) {
+  unique_bat_ids <- result %>%
+    distinct(MANUAL.ID) %>%
+    arrange(MANUAL.ID)
+}
+
+# Create a summary table: IDs as rows, sites as columns, counts as values
+summary_table <- result %>%
+  # Group by ID and Site and count occurrences
+  group_by(MANUAL.ID, Site) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  # Reshape to wide format
+  pivot_wider(
+    names_from = Site,
+    values_from = count,
+    values_fill = 0  # Fill NA values with 0
+  ) %>%
+  # Make sure all IDs from unique_bat_ids are included
+  right_join(unique_bat_ids %>% select(MANUAL.ID), by = "MANUAL.ID") %>%
+  # Replace NAs with 0s
+  mutate(across(where(is.numeric), ~replace_na(., 0)))
+
+# Reorder columns for better readability (ID first, then sites alphabetically)
+site_columns <- setdiff(names(summary_table), "MANUAL.ID")
+summary_table <- summary_table %>%
+  select(MANUAL.ID, sort(site_columns))
+
+# Calculate row totals
+summary_table <- summary_table %>%
+  mutate(Total = rowSums(select(., -MANUAL.ID)))
+
+# Add a row with column totals (excluding the NOISE row)
+col_totals <- colSums(summary_table %>% 
+                      filter(MANUAL.ID != "NOISE") %>% 
+                      select(-MANUAL.ID))
+
+# Create totals row with exactly matching column names
+totals_row <- data.frame(MANUAL.ID = "TOTAL")
+for (col_name in names(summary_table %>% select(-MANUAL.ID))) {
+  totals_row[[col_name]] <- col_totals[col_name]
+}
+
+# Combine the summary table with the totals row
+summary_table<- bind_rows(summary_table, totals_row)
+
+# Get the number of rows in the table
+n_rows <- nrow(summary_table)
+
+# Format the MANUAL.ID column (bold and italicize all rows)
+# We're creating HTML code for each cell
+summary_table$MANUAL.ID[1:(n_rows-1)] <- 
+  sapply(summary_table$MANUAL.ID[1:(n_rows-1)], 
+         function(x) paste0("<b><i>", x, "</i></b>"))
+
+# Using a safer approach to handle column names with hyphens
+columns <- names(summary_table)
+for(col in columns) {
+  # Use the safe bracket notation for column access
+  if(col != "MANUAL.ID") { # Skip the MANUAL.ID column as we already formatted it
+    summary_table[[col]][n_rows] <- paste0("<b>", summary_table[[col]][n_rows], "</b>")
+  } else {
+    # Bold the "TOTAL" text
+    summary_table[[col]][n_rows] <- paste0("<b>", summary_table[[col]][n_rows], "</b>")
+  }
+}
+
+# Bold the Total column (last column)
+total_col_name <- columns[length(columns)]  # Get the name of the last column
+for(i in 1:(n_rows-1)) { # Skip the last row since we already formatted it
+  summary_table[[total_col_name]][i] <- 
+    paste0("<b>", summary_table[[total_col_name]][i], "</b>")
+}
+
 
 ```
 
 # Executive Summary
 
-Banff National Park conducts annual acoustic monitoring of bats as part of the North American Bat Monitoring Program (NABat). In 2024, the monitoring consisted of 3 stationary acoustic deployments operating between June 26 and July 9, and 2 mobile transects conducted on July 1 and 2. These data were submitted SENSR for processing and manual vetting. The monitoring focused on seven bat species known to inhabit the region: Big Brown Bats (*Eptesicus fuscus*), Eastern Red Bats (*Lasiurus borealis*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Bats (*Myotis lucifugus*), Long-legged Myotis (*Myotis volans*) and Long-eared Myotis (*Myotis evotis*).
+Banff National Park conducts annual acoustic monitoring of bats as part of the North American Bat Monitoring Program (NABat). In 2024, the monitoring consisted of `` `r length(site_dates$Site)` `` stationary acoustic deployments operating between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` ``, and `` `r transect_dates$total_transects` `` mobile transects conducted on `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` ``. These data were submitted SENSR for processing and manual vetting. The monitoring focused on seven bat species known to inhabit the region: Big Brown Bats (*Eptesicus fuscus*), Eastern Red Bats (*Lasiurus borealis*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Bats (*Myotis lucifugus*), Long-legged Myotis (*Myotis volans*) and Long-eared Myotis (*Myotis evotis*).
 
-In total stationary detectors operated for a total of 42 recorder nights, collecting 14075 bat recordings. Of these, \### were manually reviewed and vetted. Mobile transect surveys collected 192 bat recordings which were all manually vetted. The species most identified was Little Brown Bats (# of recordings manual verified), followed by \_\_\_\_ (## of recordings identified).
+In total stationary detectors operated for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these, `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$MANUAL.ID !=""])` `` were manually reviewed and vetted. Mobile transect surveys collected `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files, of which `` `r length(data$Site[data$Site == "BANFF-MOBILE" & data$AUTO.ID != "Noise"])` ``were not identified as noise and were all manually vetted. The species most identified was Little Brown Bats (# of recordings manual verified), followed by \_\_\_\_ (## of recordings identified).
 
-Key recommendations include modifying the mobile transect route to prevent switchbacks, which compromises abundance measurements, and adjusting the Golf Course and Fenlands sites to be 5-10m away from open water and clutter to prevent multiple bats in a single recording.
+Key recommendations include modifying the mobile transect route to prevent switchbacks, which compromises abundance measurements, and adjusting the Golf Course and Fenlands sites to be 5-10m away from open water to prevent multiple bats in a single recording.
 
 # Land Acknowledgement
 
@@ -141,7 +236,7 @@ NNW Bat Hub was established in 2024 with collaboration from Government of Albert
 
 ## 2024 NABat Monitoring in Banff National Park
 
-In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_days` `` mobile transects were made in Banff National Park (Figure 1) . The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to SENSR for processing and manual vetting to determine species presence or absence at the sites.
+In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_transects` `` mobile transects were made in Banff National Park (Figure 1) . The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to SENSR for processing and manual vetting to determine species presence or absence at the sites.
 
 ![Figure 1: NABat Survey efforts by Banff National Park in 2024](Figures/2024Sites.jpg){width="2500"}
 
@@ -153,218 +248,24 @@ The analysis workflow followed processing standards established by the North Ame
 
 # Results
 
-The stationary detectors ran for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these `` `r length(data$Site[(data$Site != "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` `` were classified as noise files, with no distinguishable bat present. Of the remaining files a total of `` `r length(data$MANUAL.ID[data$MANUAL.ID !=""])` `` were reviewed and manually vetted. Of the remaining files the species and groups identified from the manual verification were `` `r unique_bat_id_vector` `` (Table 1). Explain what each of the categories means.
+The stationary detectors ran for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$AUTO.ID. == "Noise"])` `` were classified as noise files, with no distinguishable bat present. Of the remaining files a total of `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$MANUAL.ID !=""])` `` were reviewed and manually vetted, following the minimum standards set by NABat to manually verify recordings until at least one recording per species per site per night was confidently identified [@reichert2018Guide]. The manual IDs used are listed and defined in Appendix A.
 
-For driving transects a total of `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files were collected, of which `` `r length(data$Site[(data$Site == "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` `` were noise files.
+For driving transects a total of `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files were collected, of which `` `r length(data$Site[(data$Site == "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` `` were noise files. All files that were not classified as Noise were manually verified for the mobile transects.
 
 ```{r}
-#| label: bat-data-table
+#| label: summary-table-results-print
 #| echo: false
 #| warning: false
 #| message: false
 
-# Load required libraries
-library(tidyverse)
-library(kableExtra)
 
-# Read the CSV file - make sure this path is correct
-bat <- read.csv("id_complete_withSiteMVetter.csv", stringsAsFactors = FALSE)
-
-# Function to categorize a single bat ID
-categorize_single_species <- function(bat_id) {
-  if (is.na(bat_id) || bat_id == "") return(NULL)
-  
-  bat_id <- tolower(trimws(bat_id))
-  
-  # manual verification tags - case insensitive matching
-  if (grepl("mylu", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Little Brown Bat", code = "MYLU"))
-  } else if (grepl("40kmyo", bat_id, ignore.case = TRUE)) {
-    return(list(category = "40kHz Myotis", code = "40KMyo"))
-  } else if (grepl("highf", bat_id, ignore.case = TRUE)) {
-    return(list(category = "High Frequency Bats", code = "HighF"))
-  } else if (grepl("noise", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Noise", code = "NOISE"))
-  } else if (grepl("lowf", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Low Frequency Bats", code = "lowF"))
-  } else if (grepl("epfu", bat_id, ignore.case = TRUE) && !grepl("epfulano", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Big Brown Bat", code = "EPFU"))
-  } else if (grepl("epfulano", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Big Brown Bat or Silver-haired Bat", code = "EPFULANO"))
-  } else if (grepl("lano", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Silver-haired Bat", code = "LANO"))
-  } else if (grepl("labo", bat_id, ignore.case = TRUE) && !grepl("labomylu", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Eastern Red Bat", code = "LABO"))
-  } else if (grepl("labomylu", bat_id, ignore.case = TRUE)) {
-    return(list(category = "Eastern Red Bat or Little Brown Bat", code = "LABOMYLU"))
-  } else {
-    return(NULL)  # Skip records that don't match our categories
-  }
-}
-
-# Define which sites correspond to each location based on the data
-Fenlands <- "FENLANDS"
-GolfCourse <- "GOLF-COURSE"
-UpperHotSprings <- "UPPER-HOTSPRINGS"
-Mobile <- "BANFF-MOBILE"
-
-# Process the data to count species by site
-process_bat_data <- function(data, Fenlands, GolfCourse, UpperHotSprings, Mobile) {
-  # All species categories
-  categories <- c(
-    "Little Brown Bat", "40kHz Myotis", "High Frequency Bats", "Noise", 
-    "Low Frequency Bats", "Big Brown Bat or Silver-haired Bat", "Big Brown Bat",
-    "Silver-haired Bat", "Eastern Red Bat", "Eastern Red Bat or Little Brown Bat"
-  )
-  
-  codes <- c(
-    "MYLU", "40KMyo", "HighF", "NOISE", "lowF", "EPFULANO", "EPFU", 
-    "LANO", "LABO", "LABOMYLU"
-  )
-  
-  # Initialize result dataframe with all categories
-  result <- data.frame(
-    `Species Group/Species` = categories,
-    Code = codes,
-    Fenlands = rep(0, length(categories)),
-    GolfCourse = rep(0, length(categories)),
-    UpperHotSprings = rep(0, length(categories)),
-    Mobile = rep(0, length(categories)),
-    Total = rep(0, length(categories)),
-    stringsAsFactors = FALSE
-  )
-  
-  # Find the Manual ID column - accommodate different naming conventions
-  manual_id_column <- NULL
-  possible_names <- c("MANUAL.ID", "MANUAL ID", "MANUAL_ID")
-  for (name in possible_names) {
-    if (name %in% colnames(data)) {
-      manual_id_column <- name
-      break
-    }
-  }
-  
-  # If we still don't have a column, try a more flexible approach
-  if (is.null(manual_id_column)) {
-    manual_id_column <- grep("MANUAL.*ID", colnames(data), ignore.case = TRUE, value = TRUE)[1]
-  }
-  
-  # Print the column we're using
-  print(paste("Using manual ID column:", manual_id_column))
-  
-  # Process each row with a manual ID
-  for (i in 1:nrow(data)) {
-    manual_id <- data[[manual_id_column]][i]
-    site <- data$Site[i]
-    
-    # Skip if missing values
-    if (is.na(manual_id) || manual_id == "" || is.na(site)) next
-    
-    # Split by comma to handle multiple identifications
-    bat_ids <- strsplit(manual_id, ",")[[1]]
-    
-    # Process each bat ID separately
-    for (bat_id in bat_ids) {
-      # Get category info for this single bat ID
-      category_info <- categorize_single_species(bat_id)
-      
-      # Skip if no category matched
-      if (is.null(category_info)) next
-      
-      # Find the row index for this category
-      row_idx <- which(result$`Species Group/Species` == category_info$category)
-      
-      # Update counts based on site
-      if (site == Fenlands) {
-        result$Fenlands[row_idx] <- result$Fenlands[row_idx] + 1
-      } else if (site == GolfCourse) {
-        result$GolfCourse[row_idx] <- result$GolfCourse[row_idx] + 1
-      } else if (site == UpperHotSprings) {
-        result$UpperHotSprings[row_idx] <- result$UpperHotSprings[row_idx] + 1
-      } else if (site == Mobile) {
-        result$Mobile[row_idx] <- result$Mobile[row_idx] + 1
-      }
-    }
-  }
-  
-  # Calculate totals
-  result$Total <- result$Fenlands + result$GolfCourse + result$UpperHotSprings + result$Mobile
-  
-  # Add a row for total bats (excluding noise)
-  noise_idx <- which(result$`Species Group/Species` == "Noise")
-  
-  total_row <- data.frame(
-    `Species Group/Species` = "Total Bats",
-    Code = "",
-    Fenlands = sum(result$Fenlands[-noise_idx]),  # Sum excluding Noise
-    GolfCourse = sum(result$GolfCourse[-noise_idx]),  # Sum excluding Noise
-    UpperHotSprings = sum(result$UpperHotSprings[-noise_idx]),  # Sum excluding Noise
-    Mobile = sum(result$Mobile[-noise_idx]),  # Sum excluding Noise
-    Total = sum(result$Total[-noise_idx]),     # Sum excluding Noise
-    stringsAsFactors = FALSE
-  )
-  
-  # Combine with the total row
-  result <- rbind(result, total_row)
-  
-  return(result)
-}
-
-# Process the data and create the table
-bat_data <- process_bat_data(bat, Fenlands, GolfCourse, UpperHotSprings, Mobile)
-
-# Function to create a formatted table
-create_bat_table <- function(bat_data) {
-  # Format the total row with empty cells where needed
-  bat_data$Total[nrow(bat_data)] <- ""  # Empty the Total cell for Total Bats row
-  
-  bat_data %>%
-    kbl(caption = "Table 1: Results of manually classified recordings collected at 3 stations and 1 mobile transect in Banff National Park in 2024.",
-        align = c("l", "c", "c", "c", "c", "c", "c"),
-        escape = FALSE) %>%
-    kable_styling(full_width = FALSE, 
-                  position = "center", 
-                  bootstrap_options = c("striped", "hover", "condensed"))
-}
-
-# Display the table
-create_bat_table(bat_data)
-
-```
-
-```{r}
-#| label: bat-data-table
-#| echo: false
-#| warning: false
-#| message: false
-
-# Load required libraries
-library(tidyverse)
-library(kableExtra)
-
-# Read the CSV file - make sure this path is correct
-bat <- read.csv("id_complete_withSiteMVetter.csv", stringsAsFactors = FALSE)
-
-#make a categories df that has all of the potential options
-categories <- c("Hoary Bat","Eastern Red Bat" ,"Silver-haired Bat","Big Brown Bat","Little Brown Bat","Long-legged Bat","Northern Bat","Long-eared Bat", "Eastern Red Bat or Little Brown Bat", "Big Brown Bat or Silver-haired Bat","Little Brown Bat or Long-legged Bat","40kHz Myotis", "Low Frequency Bats","High Frequency Bats","Bat pulse with no identifiable characteristics", "Noise" )
-
-codes <- c("LACI", "LABO", "LANO", "EPFU", "MYLU","MYVO","MYSE","MYEV","LABOMYLU", "EPFULANO","MYLUMYVO","40KMYO","LOF","HIF","NOID","NOISE")
-
-#Create results table that I want
-result <- data.frame(
-    `Species/SpeciesGroup` = categories,
-    Code = codes,
-    Fenlands = rep(0, length(categories)),
-    GolfCourse = rep(0, length(categories)),
-    UpperHotSprings = rep(0, length(categories)),
-    Mobile = rep(0, length(categories)),
-    Total = rep(0, length(categories)),
-    stringsAsFactors = FALSE
-  )
-
-#Create a loop that will count how many of each grouping is found in the manualID column
-
-
+summary_table %>%
+  kbl(caption = "Table 1: Summary of results",
+      align = c("l", rep("c", ncol(summary_table)-1)),
+      escape = FALSE) %>%
+  kable_styling(full_width = FALSE, 
+                position = "left", 
+                bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 # Recommendations
@@ -372,3 +273,21 @@ result <- data.frame(
 Consider changing the route so that it does not curve into itself. The purpose of abundance measures is sort of defeated when this happens.
 
 Golf course deploy a little a way (5-10m) from the open water and clutter to prevent having multiple bats in a single recording. Upper hotsprings deployments look good. Microphone is close to the detector which creates an echo. Consider getting an extension cable to reduce this
+
+# Appendix A
+
+Definitions for manual identification used while processing Banff National Park bat bioacoustic data
+
+```{r}
+#| label: bat-manualID-definitions
+#| echo: false
+#| warning: false
+#| message: false
+
+unique_bat_ids %>%
+    kbl( align = c("l", "l"),
+        escape = FALSE) %>%
+    kable_styling(full_width = FALSE, 
+                  position = "left", 
+                  bootstrap_options = c("striped", "hover", "condensed"))
+```
