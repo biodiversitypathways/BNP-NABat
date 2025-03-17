@@ -276,7 +276,7 @@ The most recorded and identified species was Little Brown Bat (*Myotis lucifugus
 
 ```{r}
 #| label: tbl-summarytable
-#| tbl-cap: "Summary of manually verified bat acoustic recordings (n=1,247) across species and monitoring locations in Banff National Park (2024). Species codes in the Manual ID column represent individual bat species or acoustic groupings where species-level identification was not possible. Location columns include one mobile transect route (BANFF-MOBILE) and three stationary detector sites (FENLANDS, GOLF-COURSE, and UPPER-HOTSPRINGS) National Park"
+#| tbl-cap: "Summary of manually verified bat acoustic recordings (n=1,247) across species and monitoring locations in Banff National Park (2024). Species codes in the Manual ID column represent individual bat species or acoustic groupings where species-level identification was not possible. Location columns include one mobile transect route (BANFF-MOBILE) and three stationary detector sites (FENLANDS, GOLF-COURSE, and UPPER-HOTSPRINGS)"
 #| echo: false
 #| warning: false
 #| message: false

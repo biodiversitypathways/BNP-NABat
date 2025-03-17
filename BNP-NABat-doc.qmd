@@ -227,7 +227,7 @@ As part of contributing to the NABat program, Banff National Park has monitored 
 
 In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_transects` `` mobile transects were made in Banff National Park (@fig-map). The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to [SENSR](https://sensr.ca/) for processing and manual vetting to determine species presence or absence at the sites.
 
-![NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice during the sampling period. The blue dashed line represents the NABat grid cell boundary.](Figures/2024Sites.jpg){#fig-map alt="NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice between during the sampling period. The blue dashed line represents the NABat grid cell boundary."}
+![NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice between during the sampling period. The blue dashed line represents the NABat grid cell boundary.](Figures/2024Sites.jpg){#fig-map}
 
 # Methods
 
@@ -245,7 +245,7 @@ The most recorded and identified species was Little Brown Bat (*Myotis lucifugus
 
 ```{r}
 #| label: tbl-summarytable
-#| tbl-cap: "Summary of manually verified bat acoustic recordings (n=1,247) across species and monitoring locations in Banff National Park (2024). Species codes in the Manual ID column represent individual bat species or acoustic groupings where species-level identification was not possible. Location columns include one mobile transect route (BANFF-MOBILE) and three stationary detector sites (FENLANDS, GOLF-COURSE, and UPPER-HOTSPRINGS) National Park"
+#| tbl-cap: "Summary of manually verified bat acoustic recordings (n=1,247) across species and monitoring locations in Banff National Park (2024). Species codes in the Manual ID column represent individual bat species or acoustic groupings where species-level identification was not possible. Location columns include one mobile transect route (BANFF-MOBILE) and three stationary detector sites (FENLANDS, GOLF-COURSE, and UPPER-HOTSPRINGS)"
 #| echo: false
 #| warning: false
 #| message: false
@@ -262,13 +262,13 @@ Ftable %>%
 
 The current setup has microphones attached directly to the detector (@fig-fen). This creates a flat surface that bounces sound back into the microphone, producing echoes in the recordings (@fig-echo). These echoes reduce recording quality and complicate both automated and manual identification of bat calls. We recommend getting an extension cord so that the microphone can be mounted at the top of the bat pole by itself, while the recorder is at the base. This will reduce the amount of echo recorded improving recording quality.
 
-![Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls](Figures/20240709_084839.jpg){#fig-fen alt="Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls"}
+![Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls](Figures/20240709_084839.jpg){#fig-fen}
 
 ## Site Placement
 
 There was a high number of files with multiple bats recorded in the Golf Course and Fenlands sites (@fig-echo). This is likely due to the proximity to the water at both sites. We recommend moving these sites 5-10m away from open water to minimize the occurrence of multiple bats in single recordings. This change will make species identification more reliable.
 
-![Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification.](Figures/ProblemRecordings.JPG){#fig-echo alt="Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification."}
+![Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification.](Figures/ProblemRecordings.JPG){#fig-echo}
 
 ## Route Design for Transects
 
