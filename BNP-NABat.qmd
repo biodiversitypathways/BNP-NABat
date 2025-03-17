@@ -39,7 +39,7 @@ library(stringr)
 library(kableExtra)
 library(tidyverse)
 
-data <- read.csv("Data/BNP_full.csv")
+data <- read.csv("Data/BNP_Kaleidoscope_MV.csv")
 data$Site <- gsub("\\_.*","",data$IN.FILE)
 data$DATE <- as.Date(data$DATE)
 
