@@ -1,14 +1,14 @@
 ---
 title: "North American Bat Monitoring Program in Banff National Park"
 format:
-  html:
-    grid:
-      margin-width: 300px
-title-block-banner: "#1d4566"
-title-block-banner-color: "#F4F4F5"
+  docx:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    highlight-style: github
+    reference-doc: custom-reference-doc.docx
+    prefer-html: true
 subtitle: "Manual Verification Data Summary" 
-navbar: right
-theme: cosmo
 date: last-modified
 author: 
   - name: "Camila Hurtado"
@@ -16,11 +16,6 @@ author:
 editor: visual
 bibliography: NABat-NNWHub-references.bib
 nocite: '@*'
-toc: true
-toc-depth: 3
-toc-expand: true
-toc-location: left
-css: styles.css
 github: https://github.com/biodiversitypathways/BNP-NABat
 ---
 
@@ -36,8 +31,9 @@ library(tidyr)
 library(dplyr)
 library(lubridate)
 library(stringr)
-library(kableExtra)
+library(knitr)
 library(tidyverse)
+library(webshot2)
 
 data <- read.csv("Data/BNP_Kaleidoscope_MV.csv")
 data$Site <- gsub("\\_.*","",data$IN.FILE)
@@ -117,7 +113,6 @@ unique_bat_ids$Definition[1:(nrow(unique_bat_ids))] <-
 
 # If you want just a simple character vector
 unique_bat_id_vector <- unique_bat_ids$MANUAL.ID
-
 ```
 
 ```{r}
@@ -204,32 +199,6 @@ summary_table <- bind_rows(summary_table, totals_row)
 n_rows <- nrow(summary_table)
 
 Ftable <- summary_table
-# Format the MANUAL.ID column (bold and italicize all rows)
-# We're creating HTML code for each cell
-Ftable$MANUAL.ID[1:(n_rows-1)] <- 
-  sapply(Ftable$MANUAL.ID[1:(n_rows-1)], 
-         function(x) paste0("<b><i>", x, "</i></b>"))
-
-# Using a safer approach to handle column names with hyphens
-columns <- names(Ftable)
-for(col in columns) {
-  # Use the safe bracket notation for column access
-  if(col != "MANUAL.ID") { # Skip the MANUAL.ID column as we already formatted it
-    Ftable[[col]][n_rows] <- paste0("<b>", Ftable[[col]][n_rows], "</b>")
-  } else {
-    # Bold the "TOTAL" text
-    Ftable[[col]][n_rows] <- paste0("<b>", Ftable[[col]][n_rows], "</b>")
-  }
-}
-
-# Bold the Total column (last column)
-total_col_name <- columns[length(columns)]  # Get the name of the last column
-for(i in 1:(n_rows-1)) { # Skip the last row since we already formatted it
-  Ftable[[total_col_name]][i] <- 
-    paste0("<b>", Ftable[[total_col_name]][i], "</b>")
-}
-
-
 ```
 
 # Executive Summary
@@ -258,7 +227,7 @@ As part of contributing to the NABat program, Banff National Park has monitored 
 
 In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_transects` `` mobile transects were made in Banff National Park (@fig-map). The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to [SENSR](https://sensr.ca/) for processing and manual vetting to determine species presence or absence at the sites.
 
-![NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice during the sampling period. The blue dashed line represents the NABat grid cell boundary.](Figures/2024Sites.jpg){#fig-map}
+![NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice during the sampling period. The blue dashed line represents the NABat grid cell boundary.](Figures/2024Sites.jpg){#fig-map alt="NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice between during the sampling period. The blue dashed line represents the NABat grid cell boundary."}
 
 # Methods
 
@@ -281,16 +250,10 @@ The most recorded and identified species was Little Brown Bat (*Myotis lucifugus
 #| warning: false
 #| message: false
 
+# Word-compatible table formatting - much simpler
 Ftable %>%
-  # First rename the column
   rename(`Manual ID` = MANUAL.ID) %>%
-  #create table
-  kbl(align = c("l", rep("c", ncol(Ftable)-1)),
-      escape = FALSE) %>%
-  kable_styling(full_width = FALSE, 
-                position = "left", 
-                bootstrap_options = c("striped", "hover", "condensed")) 
-
+  kable(format = "pipe", align = c("l", rep("c", ncol(Ftable)-1)))
 ```
 
 # Recommendations
@@ -299,13 +262,13 @@ Ftable %>%
 
 The current setup has microphones attached directly to the detector (@fig-fen). This creates a flat surface that bounces sound back into the microphone, producing echoes in the recordings (@fig-echo). These echoes reduce recording quality and complicate both automated and manual identification of bat calls. We recommend getting an extension cord so that the microphone can be mounted at the top of the bat pole by itself, while the recorder is at the base. This will reduce the amount of echo recorded improving recording quality.
 
-![Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls](Figures/20240709_084839.jpg){#fig-fen}
+![Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls](Figures/20240709_084839.jpg){#fig-fen alt="Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls"}
 
 ## Site Placement
 
 There was a high number of files with multiple bats recorded in the Golf Course and Fenlands sites (@fig-echo). This is likely due to the proximity to the water at both sites. We recommend moving these sites 5-10m away from open water to minimize the occurrence of multiple bats in single recordings. This change will make species identification more reliable.
 
-![Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification.](Figures/ProblemRecordings.JPG){#fig-echo}
+![Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification.](Figures/ProblemRecordings.JPG){#fig-echo alt="Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification."}
 
 ## Route Design for Transects
 
@@ -316,17 +279,14 @@ The current route contains sections that curve back on themselves (@fig-map). Sw
 Definitions for manual identification used while processing Banff National Park bat bioacoustic data
 
 ```{r}
-#| label: bat-manualID-definitions
+#| label: bat-manualID-definitions-docx
 #| echo: false
 #| warning: false
 #| message: false
 
+# Word-compatible table formatting
 unique_bat_ids %>%
   rename(`Manual ID` = MANUAL.ID) %>%
   arrange(match(`Manual ID`, c("EPFU", "LABO", "LACI", "LANO", "MYEV", "MYLU", "MYVO", "EPFULANO", "LABOMYLU", "MYLUMYVO", "40KMYO", "MYOTIS", "HIF", "LOF", "NOID", "NOISE", "TOTAL"))) %>%
-    kbl( align = c("l", "l"),
-        escape = FALSE) %>%
-    kable_styling(full_width = FALSE, 
-                  position = "left", 
-                  bootstrap_options = c("striped", "hover", "condensed"))
+  kable(format = "pipe", align = c("l", "l"))
 ```
