@@ -109,6 +109,12 @@ unique_bat_ids <- data %>%
 #Add definitions for each manual ID
 unique_bat_ids$Definition <- c("Various species of Myotis that have a characteristic frequency in the range of 35-40kHz.", "Calls that have diagnostic features identifying it as Eptesicus fuscus", "Calls that could be attributed to either Eptesicus fuscus or Lasyonicteris noctivagans", "Various species with pulses having a characteristic frequency higher than ~35kHz", "Calls that have diagnostic features identifying it as Lasiurus borealis","Calls that could be attributed to either Lasiurus borealis or Myotis lucifugus","Calls that have diagnostic features identifying it as Lasiurus cinereus", "Calls that have diagnostic features identifying it as Lasyonicteris noctivagans", "Various species with pulses having a characteristic frequency lower than ~30kHz","Calls that have diagnostic features identifying it as Myotis evotis", "Calls that have diagnostic features identifying it as Myotis lucifugus", "Calls that could be attributed to either Myotis lucifugus or Myotis volans", "Various species of Myotis with no clear characteristic frequency","Calls that have diagnostic features identifying it as Myotis volans","Bat calls but no grouping category applies", "No bat recorded")
 
+
+#format properly
+unique_bat_ids$Definition[1:(nrow(unique_bat_ids))] <- 
+  sapply(unique_bat_ids$Definition[1:(nrow(unique_bat_ids))], 
+         function(x) paste0("<i>", x, "</i>"))
+
 # If you want just a simple character vector
 unique_bat_id_vector <- unique_bat_ids$MANUAL.ID
 
@@ -162,10 +168,28 @@ summary_table <- summary_table %>%
 summary_table <- summary_table %>%
   mutate(Total = rowSums(select(., -MANUAL.ID)))
 
+# Define the order of species we want
+species_order <- c("EPFU", "LABO", "LACI", "LANO", "MYEV", "MYLU", "MYVO", 
+                  "EPFULANO", "LABOMYLU", "MYLUMYVO", "40KHYO", "MYOTIS", 
+                  "HIF", "LOF", "NOID", "NOISE")
+
+# Add a position column for sorting
+species_positions <- data.frame(
+  MANUAL.ID = species_order,
+  position = 1:length(species_order)
+)
+
+# Join with positions and arrange
+summary_table <- summary_table %>%
+  filter(MANUAL.ID != "TOTAL") %>%  # Remove any existing TOTAL row
+  left_join(species_positions, by = "MANUAL.ID") %>%
+  arrange(position) %>%
+  select(-position)  # Remove the temporary position column
+
 # Add a row with column totals (excluding the NOISE row)
 col_totals <- colSums(summary_table %>% 
-                      filter(MANUAL.ID != "NOISE") %>% 
-                      select(-MANUAL.ID))
+                     filter(MANUAL.ID != "NOISE") %>% 
+                     select(-MANUAL.ID))
 
 # Create totals row with exactly matching column names
 totals_row <- data.frame(MANUAL.ID = "TOTAL")
@@ -174,7 +198,7 @@ for (col_name in names(summary_table %>% select(-MANUAL.ID))) {
 }
 
 # Combine the summary table with the totals row
-summary_table<- bind_rows(summary_table, totals_row)
+summary_table <- bind_rows(summary_table, totals_row)
 
 # Get the number of rows in the table
 n_rows <- nrow(summary_table)
@@ -210,9 +234,9 @@ for(i in 1:(n_rows-1)) { # Skip the last row since we already formatted it
 
 # Executive Summary
 
-Banff National Park conducts annual acoustic monitoring of bats as part of the North American Bat Monitoring Program (NABat). In 2024, the monitoring consisted of `` `r length(site_dates$Site)` `` stationary acoustic deployments operating between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` ``, and `` `r transect_dates$total_transects` `` mobile transects conducted on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` ``. These data were submitted SENSR for processing and manual vetting. The processing focused on seven bat species known to inhabit the region: Big Brown Bats (*Eptesicus fuscus*), Eastern Red Bats (*Lasiurus borealis*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Bats (*Myotis lucifugus*), Long-legged Myotis (*Myotis volans*) and Long-eared Myotis (*Myotis evotis*).
+Banff National Park conducts annual acoustic monitoring of bats as part of the North American Bat Monitoring Program (NABat). In 2024, the monitoring consisted of `` `r length(site_dates$Site)` `` stationary acoustic deployments operating between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` ``, and `` `r transect_dates$total_transects` `` mobile transects conducted on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` ``. These data were submitted SENSR for processing and manual vetting. The processing focused on seven bat species known to inhabit the region.
 
-In total `` `r length(site_dates$Site)` `` stationary detectors operated for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these, `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$MANUAL.ID !=""])` `` were manually reviewed and vetted. Mobile transect surveys collected `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files, of which `` `r length(data$Site[data$Site == "BANFF-MOBILE" & data$AUTO.ID != "Noise"])` ``were not identified as noise and were all manually vetted. The species most recorded and identified was Little Brown Bats (*Myotis lucifugus*) with a total of`` `r summary_table[11,6]` `` recordings manually verified.
+In total `` `r length(site_dates$Site)` `` stationary detectors operated for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these, `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$MANUAL.ID !=""])` `` were manually reviewed and vetted. Mobile transect surveys collected `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files, of which `` `r length(data$Site[data$Site == "BANFF-MOBILE" & data$AUTO.ID == "Noise"])` ``were identified as noise by the auto id softwares and were not all manually vetted. The species most recorded and identified was Little Brown Bats (*Myotis lucifugus*) with a total of`` `r summary_table[11,6]` `` recordings manually verified.
 
 Key recommendations for the future include modifying the mobile transect route to prevent switchbacks, which compromises abundance measurements, and adjusting the Golf Course and Fenlands sites to be 5-10m away from open water to prevent multiple bats in a single recording.
 
@@ -226,44 +250,46 @@ We acknowledge the traditional teachings of the lands that we work on, and t
 
 ## Overview of NABat and the NNW Bat Hub
 
-North American Bat Monitoring Program (NABat) is a large-scale coordinated effort to monitor bat species across North America using standardized protocols and a unified sample design [@loeb2015Plan]. NABat was established to address the gaps in knowledge and lack of long term studies of bat species across Mexico, USA and Canada. The program is administered by the US Geological Survey (USGS), coordinated by the Canadian Wildlife Health Cooperative (CWHC) in Canada, and implemented by the North by Northwest Bat (NNW) Hub in British Columbia, Alberta and S.E Alaska.
+The North American Bat Monitoring Program (NABat) is a large-scale coordinated effort to monitor bat species across North America using standardized protocols and a unified sample design [@loeb2015Plan]. NABat was established to address the gaps in knowledge and lack of long-term studies of bat species across Mexico, USA, and Canada. The program is administered by the US Geological Survey (USGS), coordinated by the Canadian Wildlife Health Cooperative (CWHC) in Canada, and implemented by the North by Northwest Bat (NNW) Hub in British Columbia, Alberta, and S.E. Alaska.
 
-NNW Bat Hub was established in 2024 with collaboration from Government of Alberta, Government of Alaska and Government of British Columbia. The hub was formed by combining the previous Alberta Hub and the BC and southeast Alaska (BC-SE_AK) Hub. The implementation of the program within Alberta is lead by Biodiversity Pathways with key support from Parks Canada, government staff, other wildlife biologists, Indigenous Nations, community members and naturalists across the province.
+As part of contributing to the NABat program, Banff National Park has monitored one sampling cell (GRTSID: 148842) within the park since 2020. This monitoring has occurred using three stationary acoustic detectors and a driving transect.
 
 ## 2024 NABat Monitoring in Banff National Park
 
-In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_transects` `` mobile transects were made in Banff National Park (Figure 1) . The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to [SENSR](https://sensr.ca/) for processing and manual vetting to determine species presence or absence at the sites.
+In the field season of 2024, `` `r length(site_dates$Site)` ``separate stationary bat acoustic deployments and `` `r transect_dates$total_transects` `` mobile transects were made in Banff National Park (@fig-map). The stationary monitoring recorders collected data between `` `r site_dates$earliest_date[1]` `` and `` `r site_dates$latest_date[1]` `` , mobile transects were made on the nights of `` `r transect_dates$earliest_date` ``and `` `r transect_dates$latest_date` `` . The recordings were submitted to [SENSR](https://sensr.ca/) for processing and manual vetting to determine species presence or absence at the sites.
 
-![Figure 1: NABat Survey efforts by Banff National Park in 2024](Figures/2024Sites.jpg){width="2500"}
+![NABat sampling grid (GRTSID: 148842) in Banff National Park for the 2024 field season. The map shows the three stationary acoustic monitoring sites (red dots) and the mobile driving transect (green line) which was conducted twice between during the sampling period. The blue dashed line represents the NABat grid cell boundary.](Figures/2024Sites.jpg){#fig-map}
 
 # Methods
 
 Full-spectrum recordings were from the sampling periods were collected and processed using two automatic classifiers: Kaleidoscope's Bats of North America 5.4.0 classifier and Sonobat 3.0's Northwestern British Columbia classifier. Based on documented species ranges and prior detection data [@olsonBat], manual identification efforts focused on seven species: Big Brown Bats (*Eptesicus fuscus*), Eastern Red Bats (*Lasiurus borealis*), Silver-haired Bats (*Lasionycteris noctivagans*), Hoary Bat (*Lasiurus cinereus*), Little Brown Bats (*Myotis lucifugus*), Long-legged Myotis (*Myotis volans*) and Long-eared Myotis (*Myotis evotis*).
 
-The analysis workflow followed processing standards established by the North American Bat Monitoring Program (NABat) [@reichert2018Guide]. Only recordings assigned a species classification by either Kaleidoscope or Sonobat were selected for manual verification. For stationary acoustic monitoring, recordings were manually vetted until at least one recording per species per site per night was confidently identified. For mobile transects, all recordings with automated species classifications were manually vetted. Species identifications were validated against reference call parameters described by @slough2022New, @solick2022Bat, and @szewczak2018Acoustic, adhering to NABat manual vetting standards [@reichert2018Guide].
+The analysis workflow followed processing standards established by the North American Bat Monitoring Program (NABat) [@reichert2018Guide]. Only recordings that received automated species classifications from either Kaleidoscope or Sonobat were selected for manual verification. For stationary acoustic monitoring sites, recordings were manually vetted until at least one recording per species per site per night was confidently identified. For mobile transects, all recordings with automated classifications underwent complete manual verification. Species identifications were validated using reference call parameters described by @szewczak2018Acoustic, @slough2022New, and @solick2022Bat, in accordance with NABat manual vetting protocols.
 
 # Results
 
-The stationary detectors ran for a total of `` `r sum(site_dates$total_days)` `` recorder nights and in total collected `` `r length(data$Site[data$Site != "BANFF-MOBILE"])` ``files. Of these `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$AUTO.ID. == "Noise"])` `` were classified as noise files, with no distinguishable bat present. Of the remaining files a total of `` `r length(data$Site[data$Site != "BANFF-MOBILE" & data$MANUAL.ID !=""])` `` were reviewed and manually vetted, following the minimum standards set by NABat to manually verify recordings until at least one recording per species per site per night was confidently identified [@reichert2018Guide]. The manual IDs used are listed and defined in Appendix A.
+The stationary detectors ran for a total of `r sum(site_dates$total_days)` recorder nights and in total collected `r length(data$Site[data$Site != "BANFF-MOBILE"])` files. Of these, `r length(data$Site[data$Site != "BANFF-MOBILE" & data$AUTO.ID. == "Noise"])` were classified as noise files, with no distinguishable bat present. Of the remaining files, a total of `r length(data$Site[data$Site != "BANFF-MOBILE" & data$MANUAL.ID !=""])` were reviewed and manually vetted, following the minimum standards set by NABat to manually verify recordings until at least one recording per species per site per night was confidently identified [@reichert2018Guide]. The manual ID codes used for species identification follow standard NABat conventions and are detailed in [Appendix A](#sec-appendixa).
 
-For driving transects a total of `` `r length(data$Site[data$Site == "BANFF-MOBILE"])` `` files were collected, of which `` `r length(data$Site[(data$Site == "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` `` were noise files. All files that were not classified as noise were manually verified for the mobile transects.
+For driving transects, a total of `r length(data$Site[data$Site == "BANFF-MOBILE"])` files were collected, of which `r length(data$Site[(data$Site == "BANFF-MOBILE" & data$AUTO.ID. == "Noise")])` were noise files. All files that were not classified as noise were manually verified for the mobile transects.
 
-The most recorded and identified species was Little Brown Bat (*Myotis lucifugus*) with a total of`` `r summary_table[11,6]` `` recordings identified, followed by Silver-haired Bats (*Lasionycteris noctivagans*) and Big Brown Bat (*Eptesicus fuscus)* both of which had a total of `` `r summary_table[8,6]` `` recordings identified across the sites and transects (Table 1).
+The most recorded and identified species was Little Brown Bat (*Myotis lucifugus*) with a total of `r summary_table[6,6]` recordings identified, followed by Silver-haired Bats (*Lasionycteris noctivagans*) and Big Brown Bat (*Eptesicus fuscus*) both of which had a total of `r summary_table[1,6]` recordings identified across the sites and transects (@tbl-summarytable).
 
 ```{r}
-#| label: summary-table-results-print
+#| label: tbl-summarytable
+#| tbl-cap: "Summary of manually verified bat acoustic recordings (n=1,247) across species and monitoring locations in Banff National Park (2024). Species codes in the Manual ID column represent individual bat species or acoustic groupings where species-level identification was not possible. Definitions for each grouping are described in Appendix A. Location columns include one mobile transect route (BANFF-MOBILE) and three stationary detector sites (FENLANDS, GOLF-COURSE, and UPPER-HOTSPRINGS) National Park"
 #| echo: false
 #| warning: false
 #| message: false
 
-
 Ftable %>%
-  kbl(caption = "Table 1: Summary of manual verification conducted in Banff National Park",
-      align = c("l", rep("c", ncol(Ftable)-1)),
+  # First rename the column
+  rename(`Manual ID` = MANUAL.ID) %>%
+  #create table
+  kbl(align = c("l", rep("c", ncol(Ftable)-1)),
       escape = FALSE) %>%
   kable_styling(full_width = FALSE, 
                 position = "left", 
-                bootstrap_options = c("striped", "hover", "condensed"))
+                bootstrap_options = c("striped", "hover", "condensed")) 
 
 ```
 
@@ -271,21 +297,21 @@ Ftable %>%
 
 ## Equipment set up
 
-The current setup has microphones attached directly to the detector (Figure 2). This creates a flat surface that bounces sound back into the microphone, producing echoes in the recordings (Figure 3). These echoes reduce recording quality and complicate both automated and manual identification of bat calls. We recommend getting an extension cord so that the microphone can be mounted at the top of the bat pole by itself, while the recorder is at the base. This will reduce the amount of echo recorded improving recording quality.
+The current setup has microphones attached directly to the detector (@fig-fen). This creates a flat surface that bounces sound back into the microphone, producing echoes in the recordings (@fig-echo). These echoes reduce recording quality and complicate both automated and manual identification of bat calls. We recommend getting an extension cord so that the microphone can be mounted at the top of the bat pole by itself, while the recorder is at the base. This will reduce the amount of echo recorded improving recording quality.
 
-![Figure 2: Deployment picture for Fenlands](Figures/20240709_084839.jpg)
+![Bat monitoring station at Fenlands site demonstrating suboptimal deployment techniques. The detector is positioned over open water, resulting in multiple bat passes recorded in single files. The microphone mounted directly on the recorder creates echo artifacts from the flat surface, compromising both automated and manual identification of bat calls](Figures/20240709_084839.jpg){#fig-fen}
 
 ## Site Placement
 
-There was a high number of files with multiple bats recorded in the Golf Course and Fenlands sites (Figure 3). This is likely due to the proximity to the water at both sites. We recommend moving these sites 5-10m away from open water to minimize the occurrence of multiple bats in single recordings. This change will make species identification more reliable.
+There was a high number of files with multiple bats recorded in the Golf Course and Fenlands sites (@fig-echo). This is likely due to the proximity to the water at both sites. We recommend moving these sites 5-10m away from open water to minimize the occurrence of multiple bats in single recordings. This change will make species identification more reliable.
 
-![Figure 3: Sample recordings with echos and multiple bats in single files](Figures/ProblemRecordings.JPG)
+![Sample spectrograms demonstrating common recording issues. Top: Multiple bat calls captured in a single file from water-adjacent deployment site. Bottom: Echo artifacts overlapping with bat calls due to microphone placement on flat recorder surface, complicating species identification.](Figures/ProblemRecordings.JPG){#fig-echo}
 
-## **Route Design for Transects**
+## Route Design for Transects
 
-The current route contains sections that curve back on themselves (Figure 1). Switchbacks in the route undermines the accuracy of abundance measurements by potentially recording the same bats multiple times. We recommend updating the route to minimize the number of switchbacks, even if this requires the route to go outside of the grid cell being sampled.
+The current route contains sections that curve back on themselves (@fig-map). Switchbacks in the route undermines the accuracy of abundance measurements by potentially recording the same bats multiple times. We recommend updating the route to minimize the number of switchbacks, even if this requires the route to go outside of the grid cell being sampled.
 
-# Appendix A
+# Appendix A {#sec-appendixa}
 
 Definitions for manual identification used while processing Banff National Park bat bioacoustic data
 
@@ -296,6 +322,8 @@ Definitions for manual identification used while processing Banff National Park 
 #| message: false
 
 unique_bat_ids %>%
+  rename(`Manual ID` = MANUAL.ID) %>%
+  arrange(match(`Manual ID`, c("EPFU", "LABO", "LACI", "LANO", "MYEV", "MYLU", "MYVO", "EPFULANO", "LABOMYLU", "MYLUMYVO", "40KMYO", "MYOTIS", "HIF", "LOF", "NOID", "NOISE", "TOTAL"))) %>%
     kbl( align = c("l", "l"),
         escape = FALSE) %>%
     kable_styling(full_width = FALSE, 
